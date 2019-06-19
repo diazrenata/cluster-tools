@@ -1,4 +1,4 @@
-quantile_walk <- function(dat, pars = list(mean = NULL, sd = NULL)) {
+quantile_walk <- function(dat, toy_comm, pars = list(mean = NULL, sd = NULL)) {
   quantile_min = rep(0.49, times = 50)
   quantile_max = rep(0.51, times = 50)
   
@@ -24,9 +24,14 @@ quantile_walk <- function(dat, pars = list(mean = NULL, sd = NULL)) {
       toy_df$nbind[i] <- 0
       toy_df$nbspp[i] <- 0
       toy_df$spp_per_ind[i] <- 0
+      next
     } else {
       toy_df$nbind[i] <- nrow(these_ind)
       toy_df$nbspp[i] <- length(unique(these_ind$species_ID))
+      if(i == 1) {
+        toy_df$spp_per_ind <- NA
+        next
+      }
       if(length(unique(these_ind$species_ID)) == toy_df$nbspp[i - 1]) {
         toy_df$spp_per_ind[i] = 0
       } else {

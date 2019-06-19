@@ -67,6 +67,8 @@ ui <- fluidPage(
       
       plotOutput(outputId = "clustPlot"),
       
+      plotOutput(outputId = "quantilePlot"),
+      
       tableOutput(outputId = "speciesAssignments")
       
     ),
@@ -100,6 +102,26 @@ server <- function(input, output) {
     plot(clust, what = "density")
   }
   )
+  
+  output$quantilePlot <- renderPlot({
+    dat <- make_dat(input = input)
+    clust <- fit_gmm(dat)
+    toy_comm <- assign_species(dat = dat, input = input)
+    q1_df <- quantile_walk(dat = dat, 
+                           toy_comm = toy_comm,
+                           pars = list(
+                             mean = clust$parameters$mean[1],
+                             sd = clust$parameters$variance$sigmasq[1]
+                           ))
+    
+    
+    collection <- ggplot2::ggplot(data = q1_df, ggplot2::aes(x = quantile_range, y = spp_per_ind)) +
+      #  # ggplot2::geom_point(data = q1_df, ggplot2::aes(x = quantile_range, y = nbind), color = "red") +
+      # ggplot2::geom_point(data = q1_df, ggplot2::aes(x = quantile_range, y = nbspp), color = "blue") +
+      ggplot2::geom_point(data = q1_df, ggplot2::aes(x = quantile_range, y = spp_per_ind), color = "purple")
+    
+    collection
+  })
   
   output$speciesAssignments <- renderTable({
     dat <- make_dat(input = input)

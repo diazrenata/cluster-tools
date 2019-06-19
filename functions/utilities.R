@@ -30,6 +30,7 @@ assign_species <- function(dat, input) {
 }
 
 fit_gmm <- function(dat){
+  library(mclust)
   clust <- Mclust(dat,modelNames = "V" )
   return(clust)
 }
