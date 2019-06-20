@@ -1,0 +1,113 @@
+---
+title: "Methods for multimodality in size dists"
+output: html_notebook
+---
+
+```{r setup}
+portal_data <- neonbecs::get_toy_portal_data()
+
+library(dplyr)
+library(ggplot2)
+```
+
+## Make "ordinary" and "weighted" size dists
+
+```{r make size dists}
+osd <- portal_data %>%
+  group_by(individual_species_ids) %>%
+  summarise(mean_size = mean(individual_sizes)) %>%
+  ungroup()
+
+wsd <- portal_data %>%
+  group_by(individual_species_ids) %>%
+  summarise(mean_size = mean(individual_sizes),
+            abundance = n()) %>%
+  ungroup()
+```
+
+```{r plot size dists}
+osd_plot <- ggplot(data = osd, aes(x = mean_size)) +
+  geom_histogram(data = osd, inherit.aes = TRUE) + 
+  theme_bw()
+
+
+osd_plot
+
+```
+
+## KS test for uniformity
+
+```{r ks test}
+ks_uniform <- ks.test(osd$mean_size, y = punif)
+print(ks_uniform)
+```
+
+
+RMD is curious how draws from a uniform distribution would stack up here
+
+```{r ks bootstrap}
+ks_uniform2 <- ks.test(runif(n = 7, 
+                             min = 5,
+                             max = 150), 
+                       y = punif)
+print(ks_uniform2)
+```
+Draws from a bounded uniform distribution come up as significantly different from `punif` in `ks.test`. 
+
+## diptest
+
+```{r diptest}
+library(diptest)
+
+dip_osd <- dip.test(osd$mean_size,  
+                    simulate.p.value = TRUE,
+                    B = 2000)
+print(dip_osd)
+
+dip_osd2 <- dip.test(runif(runif(n = 7, 
+                             min = 5,
+                             max = 150)),
+                     simulate.p.value = TRUE,
+                     B = 2000)
+print(dip_osd2)
+```
+
+So based on this we would be trying to fit a multimodal distribution *to either the real data or ```runif()```!*
+
+## KDE
+
+```{r kde}
+
+kde_osd <- density(osd$mean_size, bw = "nrd0", kernel = c("gaussian"))
+plot(kde_osd)
+
+library(pastecs)
+
+kde_osd_forturnpoints <- kde_osd$y[seq(0, 500, by = 5)]
+
+kde_osd_points <- turnpoints(kde_osd_forturnpoints)
+summary(kde_osd_points)
+```
+
+KDE method finds 2 peaks in real data.
+```{r kde uniform}
+
+kde_uniform <- density(runif(n = 7,
+                             min = 5,
+                             max = 150), bw = "nrd0", kernel = c("gaussian"))
+plot(kde_uniform)
+
+kde_uniform_forturnpoints <- kde_uniform$y[seq(0, 500, by = 5)]
+
+kde_uniform_points <- turnpoints(kde_uniform_forturnpoints)
+summary(kde_uniform_points)
+```
+
+## Latent class analysis
+Called Latent Profile Analysis for non-binary data. (RMD thinks.)
+
+```{r lca}
+library(tidyLPA)
+lpa_osd <- estimate_profiles(osd$mean_size, 4)
+```
+
