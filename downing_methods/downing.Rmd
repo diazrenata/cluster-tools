@@ -46,10 +46,14 @@ print(ks_uniform)
 RMD is curious how draws from a uniform distribution would stack up here
 
 ```{r ks bootstrap}
-ks_uniform2 <- ks.test(runif(n = 7, 
+uni1 <- runif(n = 7, 
                              min = 5,
-                             max = 150), 
-                       y = punif)
+                             max = 150)
+uni2 <-runif(n = 7, 
+                             min = 5,
+                             max = 150)
+ks_uniform2 <- ks.test(uni1, 
+                       ecdf(uni2))
 print(ks_uniform2)
 ```
 Draws from a bounded uniform distribution come up as significantly different from `punif` in `ks.test`. 
@@ -108,6 +112,57 @@ Called Latent Profile Analysis for non-binary data. (RMD thinks.)
 
 ```{r lca}
 library(tidyLPA)
-lpa_osd <- estimate_profiles(osd$mean_size, 4)
+
+lpa_osds <- list()
+for(i in 1:10) {
+  lpa_osds[[i]] <- try(estimate_profiles(osd$mean_size, i))
+}
+
 ```
 
+LPA throws errors for a number of number of classes.
+
+Why use LPA rather than another version of GMMs?
+
+
+### New stuff
+
+```{r make isd}
+portal_data <- neonbecs::get_toy_portal_data()
+
+portal_isd <- portal_data %>%
+  replicatebecs::add_energy_sizeclass() %>%
+  make_isd()
+
+print(neonbecs::plot_isd(portal_isd))
+
+isd_kde <- density(portal_isd$ln_size, bw = "nrd0", kernel = c("gaussian"))
+
+print(plot(isd_kde))
+library(pastecs)
+isd_turns <- turnpoints(isd_kde$y)
+
+isd_turn_locations <- data.frame(
+  x = isd_kde$x[isd_turns$tppos],
+  y = isd_kde$y[isd_turns$tppos],
+  is_peak = (isd_turns$peaks[isd_turns$tppos])
+)
+
+isd_gmm <- fit_gmm(isd = portal_isd)
+ sizes <- seq(min(portal_isd$ln_size) - .2, max(portal_isd$ln_size)  + .2, by = 0.001)
+  gmm_pdf <- predict(isd_gmm, newdata = sizes, what = "dens", logarithm = F)
+  pdf <- data.frame(sizes = sizes, density = gmm_pdf)
+isd_gmm_plot <- plot_gmm_pdf(pdf)
+isd_gmm_plot
+
+gmm_turns <- turnpoints(gmm_pdf)
+
+
+gmm_turn_locations <- data.frame(
+  x = pdf$sizes[gmm_turns$tppos],
+  y = pdf$density[gmm_turns$tppos],
+  is_peak = ( gmm_turns$peaks[gmm_turns$tppos])
+)
+
+
+```
