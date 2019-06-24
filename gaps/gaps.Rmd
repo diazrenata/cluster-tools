@@ -1,0 +1,118 @@
+---
+title: "Exploring methods for detecting gaps"
+output: html_notebook
+---
+
+### Setup
+
+Get data, fit GMM
+
+```{r setup}
+library(neonbecs)
+library(ggplot2)
+dat <- get_toy_portal_data() %>%
+  replicatebecs::add_energy_sizeclass() %>%
+  make_isd()
+
+dat_gmm <- fit_gmm(dat)
+gmm_pdf <- get_pdf(dat_gmm)
+
+print(plot_isd(dat))
+print(plot_gmm_pdf(gmm_pdf))
+```
+
+### 1
+
+Evaluate density at regular, small, intervals; divide by total. 
+
+```{r integrate gmm} 
+
+source(here::here("functions", "integrated_density.R"))
+
+interval_size <- 0.001
+min_size <- 0
+max_size <- 8
+
+integrated_density <- get_integrated_density(dat_gmm = dat_gmm, 
+                                             interval_size = interval_size,
+                                             min_size = min_size,
+                                             max_size = max_size)
+
+integrated_density_plot <- plot_integrated_density(integrated_density = integrated_density,
+                                                   pit_boundaries = F)
+print(integrated_density_plot)
+
+```
+
+
+Look for intervals with low P. Depending on the threshold for P, these could be regions of no or few individuals or just the least heavily represented.
+
+```{r thresholded density estimates} 
+
+integrated_density <- add_all_pit_boundaries(integrated_density = integrated_density,
+                          threshold = .08) # if lower will not find any pits
+
+integrated_density_plot_wb <- plot_integrated_density(integrated_density = integrated_density,
+                                                      threshold_lines = FALSE,
+                                                      pit_boundaries = TRUE)
+
+print(integrated_density_plot_wb)
+
+```
+
+
+Try with manufactured, gappy data.
+
+
+```{r integrated density with gappy data} 
+gappy_dat <- dat %>%
+  dplyr::select(ln_size) %>%
+  dplyr::mutate(ln_size = c(rnorm(n = floor(nrow(dat)/2), mean = 1.5, sd = .25),
+                            rnorm(n = nrow(dat) - floor(nrow(dat)/2), mean = 3.5, sd = .25))) %>%
+  dplyr::mutate(ln_size = signif(ln_size, digits = 2))
+plot_isd(gappy_dat)
+
+gappy_gmm <- fit_gmm(gappy_dat)
+
+gappy_intd <- get_integrated_density(dat_gmm = gappy_gmm, 
+                                     interval_size = .001, 
+                                     min_size = 0, 
+                                     max_size = 8)
+
+print(plot_integrated_density(gappy_intd))
+
+gappy_troughs <- add_all_pit_boundaries(integrated_density = gappy_intd,
+                                        threshold = 0.05)
+
+print(plot_integrated_density(gappy_troughs,threshold_lines = F,pit_boundaries = T))
+
+trough_sizes <- gappy_troughs %>%
+  dplyr::filter(is_in_trough) %>%
+  dplyr::select(start) %>%
+  dplyr::mutate(ln_size = signif(start, digits = 2)) %>%
+  dplyr::select(ln_size) %>%
+  dplyr::distinct()
+
+rous <- gappy_dat %>%
+  dplyr::filter(ln_size %in% trough_sizes$ln_size)
+
+print(nrow(rous))
+
+```
+
+
+### 2
+
+Decompose the GMM into its components. 
+
+Pick a quantile range - 90, 95%? 
+
+Measure the distance between the quantile min and maxes for the component Gaussian. This is a way of measuring how smushed together/dispersed they are. 
+
+### 3
+
+Decompose the GMM into its components.
+
+For pairs of nearest-neighbor components, calculate the area of overlap of the PDFs of two normal distributions with those means and sds divided by the total area of the two normals. This is an overlap index that will vary from 0 to 1 and is another way of measuring smush. 
+
+
