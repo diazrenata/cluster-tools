@@ -1,5 +1,5 @@
 ---
-title: "Exploring methods for detecting gaps"
+title: "Exploring methods for analyzing the structure of modes"
 output: html_notebook
 ---
 
@@ -45,6 +45,7 @@ print(integrated_density_plot)
 ```
 
 
+
 Look for intervals with low P. Depending on the threshold for P, these could be regions of no or few individuals or just the least heavily represented.
 
 ```{r thresholded density estimates} 
@@ -74,45 +75,6 @@ print(nrow(rous))
 
 ```
 
-
-Try with manufactured, gappy data.
-
-
-```{r integrated density with gappy data} 
-gappy_dat <- dat %>%
-  dplyr::select(ln_size) %>%
-  dplyr::mutate(ln_size = c(rnorm(n = floor(nrow(dat)/2), mean = 1.5, sd = .25),
-                            rnorm(n = nrow(dat) - floor(nrow(dat)/2), mean = 3.5, sd = .25))) %>%
-  dplyr::mutate(ln_size = signif(ln_size, digits = 2))
-plot_isd(gappy_dat)
-
-gappy_gmm <- fit_gmm(gappy_dat)
-
-gappy_intd <- get_integrated_density(dat_gmm = gappy_gmm, 
-                                     interval_size = .001, 
-                                     min_size = 0, 
-                                     max_size = 8)
-
-print(plot_integrated_density(gappy_intd))
-
-gappy_troughs <- add_all_pit_boundaries(integrated_density = gappy_intd,
-                                        threshold = 0.05)
-
-print(plot_integrated_density(gappy_troughs,threshold_lines = F,pit_boundaries = T))
-
-gappy_trough_sizes <- gappy_troughs %>%
-  dplyr::filter(is_in_trough) %>%
-  dplyr::select(start) %>%
-  dplyr::mutate(ln_size = signif(start, digits = 2)) %>%
-  dplyr::select(ln_size) %>%
-  dplyr::distinct()
-
-gappy_rous <- gappy_dat %>%
-  dplyr::filter(ln_size %in% gappy_trough_sizes$ln_size)
-
-print(nrow(gappy_rous))
-
-```
 
 Per-species probabilities (using Portal data)
 
@@ -145,9 +107,9 @@ species_summary_plot <- ggplot2::ggplot(data = species_summaries, aes(x =mean_si
   ggplot2::geom_hline(yintercept = 0.08, color = "blue") +
   ggplot2::theme_bw() +
   ggplot2::geom_segment(x = min(integrated_density[which(integrated_density$start_is_peak), "start"]), y = 0,
-                                                   xend = min(integrated_density[which(integrated_density$start_is_peak), "start"]), yend = 0.08, color = "blue") +
+                        xend = min(integrated_density[which(integrated_density$start_is_peak), "start"]), yend = 0.08, color = "blue") +
   ggplot2::geom_segment(x = max(integrated_density[which(integrated_density$start_is_peak), "start"]), y = 0,
-                                                   xend = max(integrated_density[which(integrated_density$start_is_peak), "start"]), yend = 0.08, color = "blue") +
+                        xend = max(integrated_density[which(integrated_density$start_is_peak), "start"]), yend = 0.08, color = "blue") +
   ggplot2::geom_point(aes(x = mean_size, y = prop_in_trough), color = "purple")
 
 species_summary_plot 
@@ -155,8 +117,8 @@ species_summary_plot
 individuals_plot <- ggplot2::ggplot(data = dat_p, aes(x = ln_size, y = by_max, color = individual_species_ids)) + 
   ggplot2::geom_jitter(size = .5) +
   ggplot2::geom_point(data = species_summaries, aes(x = mean_size, y = mean_p, color = individual_species_ids), size = 3) +
-    ggplot2::geom_hline(yintercept = 0.08) +
-
+  ggplot2::geom_hline(yintercept = 0.08) +
+  
   ggplot2::theme_bw()
 
 individuals_plot
@@ -165,26 +127,6 @@ individuals_plot
 
 - No species seem to live in the troughs between the modes. The individuals in the troughs are outliers from otherwise modal species. 
 - There *are* species that are entirely below the threshold (0.8 for this, because anything lower would not put any individuals in the troughs - this is for development, not real analysis), but they are below/above the peaks. So trailing edges on clumps, not weirdos between clumps. 
-
-- Also, if we set the threshold to .05...
-
-```{r threshold .05}
-species_summary_plot2 <- ggplot2::ggplot(data = species_summaries, aes(x =mean_size, y = mean_p)) +
-  ggplot2::ylim(0, 1) +
-  ggplot2::geom_point(data = species_summaries, inherit.aes = TRUE, size = 2) +
-  ggplot2::geom_point(data = species_summaries, aes(x = mean_size, y = mean_p - sd_p), size = .5) + 
-  ggplot2::geom_point(data = species_summaries, aes(x = mean_size, y = mean_p + sd_p), size = .5) +
-  ggplot2::geom_hline(yintercept = 0.05, color = "blue") +
-  ggplot2::theme_bw() +
-  ggplot2::geom_segment(x = min(integrated_density[which(integrated_density$start_is_peak), "start"]), y = 0,
-                                                   xend = min(integrated_density[which(integrated_density$start_is_peak), "start"]), yend = 0.08, color = "blue") +
-  ggplot2::geom_segment(x = max(integrated_density[which(integrated_density$start_is_peak), "start"]), y = 0,
-                                                   xend = max(integrated_density[which(integrated_density$start_is_peak), "start"]), yend = 0.08, color = "blue") +
-  ggplot2::geom_point(aes(x = mean_size, y = prop_in_trough), color = "purple")
-
-species_summary_plot2
-```
-
 
 What happens if I run a GMM on the BSD?
 
@@ -209,18 +151,77 @@ bsd_gmm_plot2
 
 
 
-### 2
+Look at relationship between P and (cumulative?) species richness/nb_ind?
 
-Decompose the GMM into its components. 
+```{r cumulative richness}
 
-Pick a quantile range - 90, 95%? 
+richness <- data.frame(start = seq(1, 0, by = -.5),
+                       n_ind = NA,
+                       n_spp = NA,
+                       prop_ind = NA,
+                       prop_spp = NA,
+                       prop_richness = NA)
 
-Measure the distance between the quantile min and maxes for the component Gaussian. This is a way of measuring how smushed together/dispersed they are. 
+N <- as.numeric(nrow(dat_p))
+S <- as.numeric(length(unique(dat_p$individual_species_ids)))
 
-### 3
+for (i in 2:(nrow(richness))){
+  
+  this_density <- dat_p %>%
+    dplyr::filter(dplyr::between(by_max, richness$start[i], richness$start[i-1]))
+  
+  richness$n_ind[i] <- nrow(this_density)
+  richness$n_spp[i] <- length(unique(this_density$individual_species_ids))
+  richness$prop_ind[i] <- nrow(this_density) / N
+  richness$prop_spp[i] <- length(unique(this_density$individual_species_ids)) / S
+  richness$prop_richness[i] <- (nrow(this_density) / N) / (length(unique(this_density$individual_species_ids)) / S)
+  
+}
 
-Decompose the GMM into its components.
+richness_prop_plot <- ggplot2::ggplot(data = richness, ggplot2::aes(x = start, y = prop_richness)) + 
+  ggplot2::ylim(0, (.1 + max(richness$prop_richness))) + 
+  ggplot2::geom_point() + 
+  ggplot2::theme_bw()
 
-For pairs of nearest-neighbor components, calculate the area of overlap of the PDFs of two normal distributions with those means and sds divided by the total area of the two normals. This is an overlap index that will vary from 0 to 1 and is another way of measuring smush. 
+richness_prop_plot
 
 
+richness_both_plot <- ggplot2::ggplot(data = richness, ggplot2::aes(x = start, y = prop_spp)) +
+  ggplot2::ylim(0, 1) +
+  ggplot2::geom_point(ggplot2::aes(x = start, y = prop_spp), color = "green") +
+  ggplot2::geom_point(ggplot2::aes(x = start, y = prop_ind), color = "blue") +
+  ggplot2::theme_bw()
+richness_both_plot
+```
+
+
+```{r mode structure} 
+
+mode_threshold = .08
+
+get_mode_dom <- function(threshold, dat_p) {
+  modes <- dat_p %>%
+    dplyr::filter(by_max > threshold)
+  
+  mode_richness <- as.numeric(length(unique(modes$individual_species_ids)))
+  mode_abund <- as.numeric(nrow(modes))
+  
+  mode_dom <- (mode_richness / S) / (mode_abund / N)
+  
+  return(mode_dom)
+}
+mode_thresholds <- data.frame(
+  threshold = seq(.01, 1, by = 0.01),
+  mode_dom = vapply(seq(0.01, 1, by = 0.01), FUN = get_mode_dom, 
+                    dat_p = dat_p, FUN.VALUE = .75)
+)
+
+thresh_plot <- ggplot2::ggplot(data = mode_thresholds, 
+                               ggplot2::aes(x = threshold, y = mode_dom)) +
+  ggplot2::geom_point() + 
+  ggplot2::geom_hline(yintercept = 1) +
+  ggplot2::theme_light()
+
+thresh_plot
+
+```

@@ -22,17 +22,17 @@ get_integrated_density <- function(dat_gmm, interval_size = 0.001, min_size = 0,
 
 plot_integrated_density <- function(integrated_density, threshold_lines = TRUE, pit_boundaries = FALSE) {
   
-  integrated_plot <- ggplot(data = integrated_density, aes(x = start, y = by_max)) +
-    geom_point(inherit.aes = TRUE, size = .1) +
-    geom_point(data = integrated_density[ which(integrated_density$start_is_peak), c("start", "by_max")], inherit.aes = TRUE, color = "green", size = 2) +
-    geom_point(data = integrated_density[ which(integrated_density$start_is_pit), c("start", "by_max")], inherit.aes = TRUE, color = "blue", size = 2) +
-    theme_bw()
+  integrated_plot <- ggplot2::ggplot(data = integrated_density, ggplot2::aes(x = start, y = by_max)) +
+    ggplot2::geom_point(inherit.aes = TRUE, size = .1) +
+    ggplot2::geom_point(data = integrated_density[ which(integrated_density$start_is_peak), c("start", "by_max")], inherit.aes = TRUE, color = "green", size = 2) +
+    ggplot2::geom_point(data = integrated_density[ which(integrated_density$start_is_pit), c("start", "by_max")], inherit.aes = TRUE, color = "blue", size = 2) +
+    ggplot2::theme_bw()
   
   if(threshold_lines) {
     integrated_plot <- integrated_plot +
-      geom_hline(yintercept = 0.08, color = "yellow") +
-      geom_hline(yintercept = 0.05, color = "orange") +
-      geom_hline(yintercept = 0.01, color = "red")
+      ggplot2::geom_hline(yintercept = 0.08, color = "yellow") +
+      ggplot2::geom_hline(yintercept = 0.05, color = "orange") +
+      ggplot2::geom_hline(yintercept = 0.01, color = "red")
   }
   
   if(pit_boundaries) {
@@ -43,8 +43,8 @@ plot_integrated_density <- function(integrated_density, threshold_lines = TRUE, 
     }
     
     integrated_plot <- integrated_plot + 
-      geom_point(data = integrated_density[ which(integrated_density$start_is_trough_start), c("start", "by_max")], inherit.aes = TRUE, color = "red", size = 2, shape = 4) +
-      geom_point(data = integrated_density[ which(integrated_density$start_is_trough_stop), c("start", "by_max")], inherit.aes = TRUE, color = "red", size = 2, shape = 4) 
+      ggplot2::geom_point(data = integrated_density[ which(integrated_density$start_is_trough_start), c("start", "by_max")], inherit.aes = TRUE, color = "red", size = 2, shape = 4) +
+      ggplot2::geom_point(data = integrated_density[ which(integrated_density$start_is_trough_stop), c("start", "by_max")], inherit.aes = TRUE, color = "red", size = 2, shape = 4) 
   }
   
   return(integrated_plot)
