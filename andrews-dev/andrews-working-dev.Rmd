@@ -18,7 +18,8 @@ dat_isd <- dat %>%
   replicatebecs::add_energy_sizeclass() %>%
   neonbecs::make_isd()
 
-neonbecs::plot_isd(dat_isd)
+isd_plot <- neonbecs::plot_isd(dat_isd)
+isd_plot
 ```
 
 #### fit a gmm
@@ -27,15 +28,29 @@ dat_gmm <- fit_gmm(dat_isd)
 
 dat_pdf <- get_pdf(dat_gmm)
 
-print(neonbecs::plot_gmm_pdf(dat_pdf))
+pdf_plot <- neonbecs::plot_gmm_pdf(dat_pdf)
+
+print(pdf_plot)
 ```
 
 #### get mode locations
 
 ```{r mode positions}
-dat_modes <- get_modes(dat_pdf)
+dat_modes <- as.data.frame(get_modes(dat_pdf)) %>%
+  dplyr::rename(ln_size ="get_modes(dat_pdf)")
 
 print(dat_modes)
+
+
+all_plot <- isd_plot +
+      ggplot2::scale_x_discrete(limits = c(0, 8)) +
+  ggplot2::geom_smooth(data = dat_pdf, inherit.aes = FALSE, stat = "identity", ggplot2::aes(x = dat_pdf$sizes, y = (dat_pdf$density) * 80)) +
+  ggplot2::scale_y_continuous(sec.axis = ggplot2::sec_axis(~./80, name = "Probability density")) +
+  ggplot2::geom_point(data = dat_modes, inherit.aes = FALSE, stat = "identity",
+                      ggplot2::aes(x = ln_size, y = 80), size = 2, shape= 8, color = "blue") +
+    ggplot2::theme_bw()
+
+all_plot
 ```
 
 #### look for gaps
@@ -169,7 +184,7 @@ thresh_plot <- ggplot2::ggplot(data = mode_thresholds,
                                ggplot2::aes(x = threshold, y = mode_dom)) +
   ggplot2::geom_point() + 
   ggplot2::geom_hline(yintercept = 1) +
-  ggplot2::theme_light()
+  ggplot2::theme_bw()
 
 thresh_plot
 ```
