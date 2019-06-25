@@ -17,9 +17,6 @@ dat <- replicatebecs::load_paper_data()[[1]]
 dat_isd <- dat %>%
   replicatebecs::add_energy_sizeclass() %>%
   neonbecs::make_isd()
-
-isd_plot <- neonbecs::plot_isd(dat_isd)
-isd_plot
 ```
 
 #### fit a gmm
@@ -28,35 +25,11 @@ dat_gmm <- fit_gmm(dat_isd)
 
 dat_pdf <- get_pdf(dat_gmm)
 
-pdf_plot <- neonbecs::plot_gmm_pdf(dat_pdf)
-
-print(pdf_plot)
 ```
 
-#### get mode locations
+#### integrate density and find peaks and pits
 
-```{r mode positions}
-dat_modes <- as.data.frame(get_modes(dat_pdf)) %>%
-  dplyr::rename(ln_size ="get_modes(dat_pdf)")
-
-print(dat_modes)
-
-
-all_plot <- isd_plot +
-      ggplot2::scale_x_discrete(limits = c(0, 8)) +
-  ggplot2::geom_smooth(data = dat_pdf, inherit.aes = FALSE, stat = "identity", ggplot2::aes(x = dat_pdf$sizes, y = (dat_pdf$density) * 80)) +
-  ggplot2::scale_y_continuous(sec.axis = ggplot2::sec_axis(~./80, name = "Probability density")) +
-  ggplot2::geom_point(data = dat_modes, inherit.aes = FALSE, stat = "identity",
-                      ggplot2::aes(x = ln_size, y = 80), size = 2, shape= 8, color = "blue") +
-    ggplot2::theme_bw()
-
-all_plot
-```
-
-#### look for gaps
-
-```{r gaps}
-
+```{r integrated density, echo = F}
 
 source(here::here("functions", "integrated_density.R"))
 
@@ -67,29 +40,25 @@ max_size <- 8
 integrated_density <- get_integrated_density(dat_gmm = dat_gmm, 
                                              interval_size = interval_size,
                                              min_size = min_size,
-                                             max_size = max_size)
-
-integrated_density_plot <- plot_integrated_density(integrated_density = integrated_density,
-                                                   pit_boundaries = F)
-print(integrated_density_plot)
-
-
-integrated_density <- add_all_pit_boundaries(integrated_density = integrated_density,
-                                             threshold = .05) 
+                                             max_size = max_size) %>%
+  add_all_pit_boundaries(threshold = .05) 
 integrated_density_plot_wb <- plot_integrated_density(integrated_density = integrated_density,
                                                       threshold_lines = FALSE,
                                                       pit_boundaries = TRUE)
 
 print(integrated_density_plot_wb)
 
-pit_bounds <- find_all_pit_boundaries(integrated_density = integrated_density,
-                                     threshold = 0.05)
+modes <- dplyr::filter(integrated_density, start_is_peak) %>%
+  dplyr::select(start, by_max)
+pits <- dplyr::filter(integrated_density, start_is_pit) %>%
+  dplyr::select(start, by_max)
 
-print(pit_bounds)
+modes
+pits
 
 ```
 #### Look at species positions along the PDF...
-```{r species breakdown}
+```{r species breakdown, echo = F}
 
 intd_tojoin <- integrated_density %>%
   dplyr::rename(ln_size2 = start) %>%
@@ -111,34 +80,20 @@ species_summaries <- dat_p %>%
 species_summaries <- species_summaries %>%
   dplyr::mutate(sd_p = tidyr::replace_na(data = species_summaries$sd_p, replace = 0))
 
-species_summary_plot <- ggplot2::ggplot(data = species_summaries, ggplot2::aes(x =mean_size, y = mean_p)) +
-  ggplot2::ylim(0, 1) +
-  ggplot2::geom_point(data = species_summaries, inherit.aes = TRUE, size = 2) +
-  ggplot2::geom_point(data = species_summaries, ggplot2::aes(x = mean_size, y = mean_p - sd_p), size = .5) + 
-  ggplot2::geom_point(data = species_summaries, ggplot2::aes(x = mean_size, y = mean_p + sd_p), size = .5) +
-  ggplot2::geom_hline(yintercept = 0.05, color = "blue") +
-  ggplot2::theme_bw() +
-  ggplot2::geom_segment(x = min(integrated_density[which(integrated_density$start_is_peak), "start"]), y = 0,
-                                                   xend = min(integrated_density[which(integrated_density$start_is_peak), "start"]), yend = 0.05, color = "blue") +
-  ggplot2::geom_segment(x = max(integrated_density[which(integrated_density$start_is_peak), "start"]), y = 0,
-                                                   xend = max(integrated_density[which(integrated_density$start_is_peak), "start"]), yend = 0.05, color = "blue") +
-  ggplot2::geom_point(ggplot2::aes(x = mean_size, y = prop_in_trough), color = "purple")
-
-species_summary_plot 
 
 individuals_plot <- ggplot2::ggplot(data = dat_p, ggplot2::aes(x = ln_size, y = by_max, color = individual_species_ids)) + 
   ggplot2::geom_jitter(size = .5) +
   ggplot2::geom_point(data = species_summaries, ggplot2::aes(x = mean_size, y = mean_p, color = individual_species_ids), size = 3) +
-    ggplot2::geom_hline(yintercept = 0.05) +
-
+  ggplot2::geom_hline(yintercept = 0.05) +
+  
   ggplot2::theme_bw()
 
 individuals_plot
 ```
 
-#### Who are the ROUS?
+#### Look at the composition of the troughs
 
-```{r rous}
+```{r rous, fig.height = 4, fig.width=8, echo = F}
 
 trough_sizes <- integrated_density %>%
   dplyr::filter(is_in_trough) %>%
@@ -147,23 +102,30 @@ trough_sizes <- integrated_density %>%
   dplyr::select(ln_size) %>%
   dplyr::distinct()
 
-rous <- dat_isd %>%
+trough_ind <- dat_isd %>%
   dplyr::mutate(ln_size = signif(ln_size, digits = 4)) %>%
   dplyr::filter(ln_size %in% trough_sizes$ln_size) %>%
   dplyr::left_join(species_summaries, by = "individual_species_ids") %>%
   dplyr::select(-individual_sizes, -individual_energy, -size_class, -size_class_g, -ln_energy) %>%
   dplyr::arrange(dplyr::desc(individual_species_ids))
 
-print(rous)
+trough_plot <- ggplot2::ggplot(data = trough_ind, ggplot2::aes(x = prop_in_trough, y = ln_size/mean_size, color = individual_species_ids, size = n_ind)) +
+  ggplot2::xlim(0, 1) + 
+  ggplot2::ylim(.5, 1.5) +
+  ggplot2::geom_hline(yintercept = 1) +
+  ggplot2::geom_jitter() +
+  ggplot2::theme_bw()
+
+trough_plot
 ```
 #### Mode structure
-```{r mode structure}
+```{r mode structure, echo = F}
 
 get_mode_dom <- function(threshold, dat_p) {
   
-N <- as.numeric(nrow(dat_p))
-S <- as.numeric(length(unique(dat_p$individual_species_ids)))
-
+  N <- as.numeric(nrow(dat_p))
+  S <- as.numeric(length(unique(dat_p$individual_species_ids)))
+  
   modes <- dat_p %>%
     dplyr::filter(by_max > threshold)
   
