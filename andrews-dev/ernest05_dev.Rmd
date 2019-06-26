@@ -1,0 +1,98 @@
+---
+title: "Exploratory analyses using Ernest 2005 data"
+output: html_notebook
+---
+
+```{r setup, get data}
+
+library(neonbecs)
+# replicatebecs::download_raw_paper_data()
+# replicatebecs::process_raw_data()
+communities <- replicatebecs::load_paper_data()
+```
+
+#### generate ISDs
+
+```{r isd}
+communities_energy <- lapply(communities, replicatebecs::add_energy_sizeclass)
+isds <- lapply(communities_energy, make_isd)
+```
+
+#### fit gmms
+```{r isd gmm}
+gmms <- lapply(isds, fit_gmm)
+```
+
+#### integrate density and find peaks and pits
+
+```{r integrated density, fig.width = 8, fig.height = 24, echo = F}
+
+source(here::here("functions", "integrated_density.R"))
+
+interval_size <- 0.001
+min_size <- 0
+max_size <- 8
+
+integrated_densities <- lapply(gmms, get_integrated_density, 
+                                             interval_size = interval_size,
+                                             min_size = min_size,
+                                             max_size = max_size) 
+integrated_densities<- lapply(integrated_densities, add_all_pit_boundaries, threshold = .05)
+
+integrated_density_plots<- lapply(integrated_densities, plot_integrated_density,
+                                                      threshold_lines = FALSE,
+                                                      pit_boundaries = TRUE)
+gridExtra::grid.arrange(grobs = integrated_density_plots, nrow = 5)
+
+
+```
+#### Look at species positions along the PDF...
+```{r species breakdown, fig.width = 8, fig.height = 24, echo = F}
+dat_p_args_list <- list()
+for(i in 1:9) {
+  dat_p_args_list[[i]] <- list(integrated_density = integrated_densities[[i]],
+                               isd = isds[[i]])
+}
+
+dat_ps <- lapply(dat_p_args_list, get_dat_p)
+
+species_summaries <- lapply(dat_ps, get_species_summaries)
+
+individuals_plots <- list()
+
+for(i in 1:9) {
+  individuals_plots[[i]] <- plot_individuals(dat_p = dat_ps[[i]],
+                                             species_summary = species_summaries[[i]])
+}
+
+gridExtra::grid.arrange(grobs = individuals_plots, nrow = 5)
+
+
+```
+
+#### Look at the composition of the troughs
+
+```{r rous, fig.width = 8, fig.height = 24, echo = F}
+trough_individuals <- list()
+
+for(i in 1:9) {
+  trough_individuals[[i]] <- get_trough_individuals(integrated_density = integrated_densities[[i]], 
+                                                    dat_isd = isds[[i]],
+                                                    species_summary = species_summaries[[i]])
+}
+
+trough_plots <- lapply(trough_individuals, plot_trough_individuals)
+
+gridExtra::grid.arrange(grobs = trough_plots, nrow = 5)
+
+```
+#### Mode structure
+```{r mode structure, fig.width = 8, fig.height = 24, echo = F}
+
+mode_thresholdeds <- lapply(dat_ps, get_mode_thresholded)
+
+mode_plots <- lapply(mode_thresholdeds, plot_mode_dom)
+
+gridExtra::grid.arrange(grobs = mode_plots, nrow = 5)
+
+```
