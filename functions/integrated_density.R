@@ -166,6 +166,20 @@ get_species_summaries <- function(dat_p) {
   return(species_summaries)
 }
 
+plot_species_p <- function(species_summary, threshold = 0.05) {
+  species_p_plot <- ggplot2::ggplot(data = species_summary,
+                                    ggplot2::aes(x = mean_size, y = mean_p)) +
+    ggplot2::ylim(0,1) +
+    ggplot2::geom_point(inherit.aes = T) +
+    ggplot2::geom_errorbar(ggplot2::aes(ymin = mean_p - sd_p,
+                                        ymax = mean_p + sd_p)) +
+    ggplot2::geom_hline(yintercept = threshold) +
+    ggplot2::theme_bw()
+  
+  return(species_p_plot)
+  
+}
+
 plot_individuals <- function(dat_p, species_summary) {
   
   individuals_plot <- ggplot2::ggplot(data = dat_p, ggplot2::aes(x = ln_size, y = by_max, color = individual_species_ids)) + 
@@ -206,7 +220,7 @@ plot_trough_individuals <- function(trough_ind) {
   if(nrow(trough_ind) == 0) {
     trough_plot <- ggplot2::ggplot(data = trough_ind, ggplot2::aes(x = prop_in_trough, y = relative_size, color = individual_species_ids, size = n_ind))
     return(trough_plot)
-    }
+  }
   
   max_rel_size = max(trough_ind$relative_size, na.rm =T) + 1
   

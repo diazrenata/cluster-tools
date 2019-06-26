@@ -25,6 +25,14 @@ gmms <- lapply(isds, fit_gmm)
 
 #### integrate density and find peaks and pits
 
+The output is obnoxious, sorry.
+
+Green dots indicate local maxima; blue dots local minima. Red x's surrounding blue dots denote boundaries of "gaps", areas of the size spectrum where the density is <= 5% of the maximum density. No red x's means no gaps.
+
+Communities have 2-4 modes. Most communities have at least one gap (but see the fourth one, sev-5pgrass.) 
+
+The sixth one (sev-goatdraw) manages to have a mode that is at 5%? 
+
 ```{r integrated density, fig.width = 8, fig.height = 24, echo = F}
 
 source(here::here("functions", "integrated_density.R"))
@@ -46,7 +54,42 @@ gridExtra::grid.arrange(grobs = integrated_density_plots, nrow = 5)
 
 
 ```
-#### Look at species positions along the PDF...
+#### How many modes and troughs do communities have?
+
+Points on the line will have the maximum number of troughs they could have given the number of modes. Most (6/9) communities fall below the line. 
+
+```{r plot modes and troughs}
+
+community_stats <- data.frame(
+  community_name= names(communities),
+  nmodes = NA,
+  ntroughs = NA
+)
+
+
+for(i in 1:nrow(community_stats)) {
+  community_stats$nmodes[i] <- sum(integrated_densities[[i]]$start_is_peak)
+    community_stats$ntroughs[i] <- sum(integrated_densities[[i]]$start_is_trough_start)
+}
+
+modes_troughs_plot <- ggplot2::ggplot(data = community_stats, ggplot2::aes(x = nmodes, y = ntroughs)) +
+  ggplot2::ylim(-0.2, 4) + 
+  ggplot2::xlim(0, 5) +
+  ggplot2::geom_jitter(inherit.aes = TRUE, width = .2, height = .1) + 
+  ggplot2::geom_abline(slope = 1, intercept = -1) +
+  ggplot2::theme_bw()
+
+modes_troughs_plot
+```
+
+
+
+#### Do species have means or tails in troughs?
+
+Plotting species mean probability density against their size. Error bars are 1 standard deviation. Line is 5%. 
+
+If a species' *mean* is below 5%, it is kind of a "gap specialist". If only the tail of its standard deviation is below 5%, the individuals in the gap are unusually-improbably-sized for their species (juveniles, pregnant, maybe?).  
+
 ```{r species breakdown, fig.width = 8, fig.height = 24, echo = F}
 dat_p_args_list <- list()
 for(i in 1:9) {
@@ -58,36 +101,15 @@ dat_ps <- lapply(dat_p_args_list, get_dat_p)
 
 species_summaries <- lapply(dat_ps, get_species_summaries)
 
-individuals_plots <- list()
+p_plots <- lapply(species_summaries, plot_species_p, threshold = 0.05)
 
-for(i in 1:9) {
-  individuals_plots[[i]] <- plot_individuals(dat_p = dat_ps[[i]],
-                                             species_summary = species_summaries[[i]])
-}
-
-gridExtra::grid.arrange(grobs = individuals_plots, nrow = 5)
+gridExtra::grid.arrange(grobs = p_plots, nrow = 5)
 
 
 ```
 
-#### Look at the composition of the troughs
-
-```{r rous, fig.width = 8, fig.height = 24, echo = F}
-trough_individuals <- list()
-
-for(i in 1:9) {
-  trough_individuals[[i]] <- get_trough_individuals(integrated_density = integrated_densities[[i]], 
-                                                    dat_isd = isds[[i]],
-                                                    species_summary = species_summaries[[i]])
-}
-
-trough_plots <- lapply(trough_individuals, plot_trough_individuals)
-
-gridExtra::grid.arrange(grobs = trough_plots, nrow = 5)
-
-```
 #### Mode structure
-```{r mode structure, fig.width = 8, fig.height = 24, echo = F}
+```{r mode structure, include = F, fig.width = 8, fig.height = 24, echo = F}
 
 mode_thresholdeds <- lapply(dat_ps, get_mode_thresholded)
 
