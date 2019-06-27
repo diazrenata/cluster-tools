@@ -1,0 +1,53 @@
+---
+title: "ISD methods"
+output: html_notebook
+---
+## setup
+
+```{r setup, echo = F}
+library(dplyr)
+R.utils::sourceDirectory(path = here::here("lumpy-gappy", "R"))
+```
+
+## get data
+
+```{r get data}
+
+dat <- get_toy_portal_data()
+dat_e <- add_energy_sizeclass(dat)
+isd <- make_isd(dat_e)
+
+```
+
+## draw a sim
+
+```{r draw sim}
+
+communitypars <- get_community_pars(isd)
+
+sim <- draw_sim(community_pars = communitypars)
+
+sim_e <- add_energy_sizeclass(sim)
+
+sim_isd <- make_isd(sim_e)
+
+```
+## plot ISDs
+
+```{r plot ISDs}
+isd_plot <- plot_isd(isd, "Empirical")
+sim_isd_plot <- plot_isd(sim_isd, "Simulated") 
+
+gridExtra::grid.arrange(isd_plot, sim_isd_plot, nrow = 1)
+
+```
+
+## fit GMMs
+
+## integrate density
+
+## find modes, pits, and troughs
+
+## plot & count
+
+

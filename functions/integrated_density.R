@@ -236,35 +236,72 @@ plot_trough_individuals <- function(trough_ind) {
 }
 
 
-get_mode_dom <- function(threshold, dat_p) {
+get_mode_individuals <- function(threshold, dat_p, integrated_density) {
+  
+  pit_vals <- integrated_density[ which(integrated_density$start_is_pit), "start"]
+  
+  mode_bounds <- data.frame(
+    mode_start = c(0, pit_vals),
+    mode_stop = c(pit_vals, max(integrated_density$start))
+  ) 
+  
+  extract_modes <- function(mode_bound, dat_p) {
+    this_mode <- dplyr::filter(dat_p, 
+                               dplyr::between(ln_size, mode_bound[1], mode_bound[2]))
+    return(this_mode)
+  }
+  
+  these_modes <- apply(mode_bounds, MARGIN = 1, FUN =extract_modes, dat_p = dat_p)
+  
+  return(these_modes)
+}
+
+get_mode_dom <- function(mode_inds, dat_p) {
   
   N <- as.numeric(nrow(dat_p))
   S <- as.numeric(length(unique(dat_p$individual_species_ids)))
   
-  modes <- dat_p %>%
-    dplyr::filter(by_max > threshold)
   
-  mode_richness <- as.numeric(length(unique(modes$individual_species_ids)))
-  mode_abund <- as.numeric(nrow(modes))
+  mode_richness <- as.numeric(length(unique(mode_inds$individual_species_ids)))
+  mode_abund <- as.numeric(nrow(mode_inds))
   
   mode_dom <- (mode_richness / S) / (mode_abund / N)
   
   return(mode_dom)
 }
 
-get_mode_thresholded <- function(dat_p) {
-  mode_thresholded <- data.frame(
-    threshold = seq(.01, 1, by = 0.01),
-    mode_dom = vapply(seq(0.01, 1, by = 0.01), FUN = get_mode_dom, 
-                      dat_p = dat_p, FUN.VALUE = .75)
-  )
-  return(mode_thresholded)
-}
-
-plot_mode_dom <- function(mode_thresholded) {
+get_mode_dom_community <- function(dat_p, integrated_density) {
+  thresholds = seq(.01, 1, by = 0.01)
   
-  thresh_plot <- ggplot2::ggplot(data = mode_thresholded, 
-                                 ggplot2::aes(x = threshold, y = mode_dom)) +
+  threshold_comm <- data.frame(
+    threshold = NA,
+    mode = NA,
+    dom = NA
+  )
+  
+  for(i in 1:length(thresholds)) {
+    modes_this_t <- get_mode_individuals(threshold = thresholds[i],
+                                        dat_p = dat_p,
+                                        integrated_density = integrated_density)
+    dom_this_t <- vapply(modes_this_t, get_mode_dom, dat_p= dat_p, FUN.VALUE = 1.4)
+    
+    this_threshold_comm <- data.frame(
+      threshold = thresholds[i],
+      mode = 1:length(modes_this_t),
+      dom = dom_this_t)
+    
+    threshold_comm <- rbind(threshold_comm, this_threshold_comm)
+  }
+  
+  threshold_comm <- na.omit(threshold_comm)
+  return(threshold_comm)
+}
+  
+
+plot_mode_dom <- function(thresholded_comm) {
+  
+  thresh_plot <- ggplot2::ggplot(data = thresholded_comm, 
+                                 ggplot2::aes(x = threshold, y = dom, color = mode)) +
     ggplot2::geom_point() + 
     ggplot2::geom_hline(yintercept = 1) +
     ggplot2::theme_bw()

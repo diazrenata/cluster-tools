@@ -16,6 +16,10 @@ communities <- replicatebecs::load_paper_data()
 ```{r isd}
 communities_energy <- lapply(communities, replicatebecs::add_energy_sizeclass)
 isds <- lapply(communities_energy, make_isd)
+
+isd_plot <- lapply(isds, plot_isd)
+
+gridExtra::grid.arrange(grobs = isd_plot, nrow = 3)
 ```
 
 #### fit gmms
@@ -33,7 +37,7 @@ Communities have 2-4 modes. Most communities have at least one gap (but see the 
 
 The sixth one (sev-goatdraw) manages to have a mode that is at 5%? 
 
-```{r integrated density, fig.width = 8, fig.height = 24, echo = F}
+```{r integrated density, fig.width = 8, fig.height = 16, echo = F}
 
 source(here::here("functions", "integrated_density.R"))
 
@@ -108,13 +112,23 @@ gridExtra::grid.arrange(grobs = p_plots, nrow = 5)
 
 ```
 
-#### Mode structure
-```{r mode structure, include = F, fig.width = 8, fig.height = 24, echo = F}
+<!-- #### Mode structure -->
+<!-- ```{r mode structure, include = F, fig.width = 8, fig.height = 24, echo = F} -->
 
-mode_thresholdeds <- lapply(dat_ps, get_mode_thresholded)
+<!-- mode_thresholdeds <- get_mode_dom_community(dat_ps[[1]], integrated_densities[[1]]) -->
 
-mode_plots <- lapply(mode_thresholdeds, plot_mode_dom)
+<!-- mode_plot <- plot_mode_dom(mode_thresholdeds) -->
 
-gridExtra::grid.arrange(grobs = mode_plots, nrow = 5)
+<!-- gridExtra::grid.arrange(grobs = mode_plots, nrow = 5) -->
+
+<!-- ``` -->
+
+#### BSDs (for reference)
+
+```{r plot bsds}
+
+bsds <-lapply(communities, replicatebecs::make_bsd)
+bsd_plots <- lapply(bsds, replicatebecs::plot_bsd)
+gridExtra::grid.arrange(grobs = bsd_plots, nrow = 3)
 
 ```
