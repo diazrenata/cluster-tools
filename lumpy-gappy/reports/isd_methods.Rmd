@@ -22,7 +22,7 @@ isd <- make_isd(dat_e)
 ## draw a sim
 
 ```{r draw sim}
-
+set.seed(352)
 communitypars <- get_community_pars(isd)
 
 sim <- draw_sim(community_pars = communitypars)
@@ -50,15 +50,63 @@ isds_to_analyze <- list(emp = isd,
                         sim = sim_isd)
 
 gmms <- lapply(isds_to_analyze, fit_gmm)
-
-
-
 ```
 
 ## integrate density
 
+```{r integrate density}
+
+ids <- lapply(gmms, get_integrated_density)
+
+id_plots <- lapply(ids, plot_integrated_density, threshold_lines = 0.05, pit_boundaries = F)
+
+gridExtra::grid.arrange(grobs = id_plots, nrow = 1)
+```
+
+
 ## find modes, pits, and troughs
 
-## plot & count
+```{r trough boundaries}
 
+ids <- lapply(ids, add_all_pit_boundaries, threshold = 0.05)
+
+id_plots <- lapply(ids, plot_integrated_density, pit_boundaries = T)
+
+gridExtra::grid.arrange(grobs = id_plots, nrow = 1)
+```
+
+## summarize isd method results
+
+```{r summarize isd methods}
+
+isd_method_summaries <- lapply(ids, isd_methods_summary, threshold = 0.05) %>%
+  dplyr::bind_rows(.id = "community")
+
+```
+
+## Sims at scale
+
+```{r sims at scale}
+communitypars <- get_community_pars(isd)
+
+sims <- replicate(draw_sim(community_pars = communitypars), n = 10, simplify = F)
+
+sims_e <- lapply(sims, add_energy_sizeclass)
+
+sims_isd <- lapply(sims_e, make_isd)
+
+sims_gmms <- lapply(sims_isd, fit_gmm)
+
+sims_ids <- lapply(sims_gmms, get_integrated_density)
+
+sims_ids <- lapply(sims_ids, add_all_pit_boundaries, threshold = 0.05)
+
+sims_isd_method_summaries <- lapply(sims_ids, isd_methods_summary, threshold = 0.05) %>%
+  dplyr::bind_rows(.id = "sim")
+
+sims_plots <- lapply(sims_ids, plot_integrated_density, pit_boundaries = T)
+
+sims_plots
+
+```
 
