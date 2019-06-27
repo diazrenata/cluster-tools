@@ -44,6 +44,17 @@ gridExtra::grid.arrange(isd_plot, sim_isd_plot, nrow = 1)
 
 ## fit GMMs
 
+```{r fit gmms}
+
+isds_to_analyze <- list(emp = isd,
+                        sim = sim_isd)
+
+gmms <- lapply(isds_to_analyze, fit_gmm)
+
+
+
+```
+
 ## integrate density
 
 ## find modes, pits, and troughs

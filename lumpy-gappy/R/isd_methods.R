@@ -6,6 +6,8 @@ make_isd <- neonbecs::make_isd
 
 # Fit GMM
 
+fit_gmm <- neonbecs::fit_gmm
+
 # Integrate density of GMM
 
 # Find maxima and minima in GMM
