@@ -86,7 +86,7 @@ isd_method_summaries <- lapply(ids, isd_methods_summary, threshold = 0.05) %>%
 
 ## Sims at scale
 
-```{r sims at scale}
+```{r sims at scale, fig.width=18, fig.height=6}
 communitypars <- get_community_pars(isd)
 
 sims <- replicate(draw_sim(community_pars = communitypars), n = 10, simplify = F)
@@ -99,14 +99,29 @@ sims_gmms <- lapply(sims_isd, fit_gmm)
 
 sims_ids <- lapply(sims_gmms, get_integrated_density)
 
-sims_ids <- lapply(sims_ids, add_all_pit_boundaries, threshold = 0.05)
+sims_ids_05 <- lapply(sims_ids, add_all_pit_boundaries, threshold = 0.05)
+sims_ids_025 <- lapply(sims_ids, add_all_pit_boundaries, threshold = 0.025)
+sims_ids_1 <- lapply(sims_ids, add_all_pit_boundaries, threshold = 0.1)
 
-sims_isd_method_summaries <- lapply(sims_ids, isd_methods_summary, threshold = 0.05) %>%
-  dplyr::bind_rows(.id = "sim")
 
-sims_plots <- lapply(sims_ids, plot_integrated_density, pit_boundaries = T)
+
+sims_isd_method_summaries_05 <- lapply(sims_ids_05, isd_methods_summary, threshold = 0.05)
+sims_isd_method_summaries_025 <- lapply(sims_ids_025, isd_methods_summary, threshold = 0.025)
+sims_isd_method_summaries_1 <- lapply(sims_ids_1, isd_methods_summary, threshold = 0.1)
+
+
+sims_summary <-  dplyr::bind_rows(sims_isd_method_summaries_05, 
+                                  sims_isd_method_summaries_025,
+                                  sims_isd_method_summaries_1,
+                                  .id = "sim")
+
+sims_plots <- lapply(sims_ids[1:10], plot_integrated_density, threshold_lines = c(0.025, 0.05, 0.1))
 
 sims_plots
+
+sims_summary_plots <- plot_isd_methods_summary(sims_summary)
+
+gridExtra::grid.arrange(grobs = sims_summary_plots, nrow = 1)
 
 ```
 

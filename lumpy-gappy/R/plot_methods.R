@@ -36,3 +36,38 @@ plot_integrated_density <- function(integrated_density, threshold_lines = NULL, 
   
   return(integrated_plot)
 }
+
+# Plot ISD methods summary variables
+
+plot_isd_methods_summary <- function(summary_dataframe) {
+  
+  baseplot <- ggplot2::ggplot(data = summary_dataframe) +
+    ggplot2::theme_bw()
+  
+  if(any(summary_dataframe$empirical)) {
+    baseplot <- baseplot +
+      ggplot2::aes(color = empirical)
+}
+  modes_plot <- baseplot + 
+    ggplot2::geom_bar(ggplot2::aes(x = as.factor(nmodes))) +
+    ggplot2::labs(x = "Number of modes", y = "Count", title = "Number of modes (all)")
+  
+  modes_abovet_plot <- baseplot + 
+    ggplot2::geom_bar(ggplot2::aes(x = as.factor(nmodes_above_threshold))) +
+    ggplot2::labs(x = "Number of modes above threshold", y = "Count", title = "Number of modes above threshold") +
+    ggplot2::facet_grid(. ~ threshold)
+  
+  ntroughs_plot <- baseplot + 
+    ggplot2::geom_jitter(ggplot2::aes(x = ntroughs_possible, y = ntroughs), width = .2, height = 0) +
+    ggplot2::xlim(-.5, max(summary_dataframe$ntroughs_possible) + .5) + 
+    ggplot2::ylim(0, max(summary_dataframe$ntroughs_possible) + 1) +
+    ggplot2::labs(x = "Number of troughs possible", y = "Number of troughs", title = "Number of modes above threshold") +
+    ggplot2::geom_abline(slope = 1, intercept = 0) +
+    ggplot2::facet_grid(. ~ threshold)
+  
+  summary_plots <- list(modes_plot = modes_plot,
+                        modes_abovet_plot = modes_abovet_plot,
+                        ntroughs_plot = ntroughs_plot)
+  
+  return(summary_plots)
+}

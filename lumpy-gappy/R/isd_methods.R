@@ -23,8 +23,25 @@ get_integrated_density <- function(gmm, interval_size = 0.0001, min_size = 0, ma
   
   p_turnpoints <- pastecs::turnpoints(integrated_density$by_max)
   
-  integrated_density$start_is_peak <- p_turnpoints$peaks[1:length(density_evalpoints) -1 ]
-  integrated_density$start_is_pit <- p_turnpoints$pits[1:length(density_evalpoints) -1 ]
+  pits <- c()
+  peaks <- c()
+  
+  tppos <- p_turnpoints$tppos
+  if(length(tppos) > 0) {
+    if(p_turnpoints$firstispeak) {
+      peaks <- tppos[ seq(1, length(tppos), by = 2)]
+      if(length(tppos) > 1) {
+        pits <- tppos[ seq(2, length(tppos), by =2)]
+      } 
+    } else {
+      pits <- tppos[ seq(1, length(tppos), by =2)]
+      if(length(tppos) > 1) {
+        peaks <- tppos[ seq(2, length(tppos), by =2)]
+      }
+    }
+  }
+  integrated_density$start_is_peak <- c(1:(length(density_evalpoints) - 1)) %in% peaks
+  integrated_density$start_is_pit <- c(1:(length(density_evalpoints) - 1)) %in% pits
   integrated_density$start_is_turnpoint <- (integrated_density$start_is_peak | integrated_density$start_is_pit)
   
   return(integrated_density)
@@ -57,8 +74,12 @@ find_pit_sections <- function(pit, integrated_density, threshold) {
 
 find_all_pits <- function(integrated_density, threshold = 0.05) {
   
+  peaks_above_thresh <- dplyr::filter(integrated_density,
+                                      start_is_peak, by_max >= threshold)
+  
   pits <- integrated_density %>%
-    dplyr::filter(start_is_pit, by_max <= threshold) 
+    dplyr::filter(start_is_pit, by_max <= threshold,
+                  start > min(peaks_above_thresh$start))
   
   if(!any(pits$by_max <= threshold)) {
     return(NULL)
@@ -128,21 +149,24 @@ add_all_pit_boundaries <- function(integrated_density, threshold = 0.05) {
 
 # Count modes and troughs in density
 
-isd_methods_summary <- function(integrated_density, threshold) {
+isd_methods_summary <- function(integrated_density, threshold, empirical = F) {
   nmodes  <- sum(integrated_density$start_is_peak)
   
   nmodes_above_threshold <- nrow(dplyr::filter(integrated_density,
-                           start_is_peak == TRUE,
-                           by_max >= threshold))
+                                               start_is_peak == TRUE,
+                                               by_max >= threshold))
   
   ntroughs <- sum(integrated_density$start_is_trough_start)
   
   ntroughs_possible <- nmodes_above_threshold - 1
   
   summary_variables <- list(nmodes = nmodes, 
-                         nmodes_above_threshold = nmodes_above_threshold,
-                         ntroughs = ntroughs,
-                         ntroughs_possible = ntroughs_possible)
+                            nmodes_above_threshold = nmodes_above_threshold,
+                            ntroughs = ntroughs,
+                            ntroughs_possible = ntroughs_possible,
+                            threshold = threshold,
+                            empirical = empirical)
+  
   
   return(summary_variables)
 }
