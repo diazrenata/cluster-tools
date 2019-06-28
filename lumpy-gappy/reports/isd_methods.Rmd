@@ -89,7 +89,7 @@ isd_method_summaries <- lapply(ids, isd_methods_summary, threshold = 0.05) %>%
 ```{r sims at scale, fig.width=18, fig.height=6}
 communitypars <- get_community_pars(isd)
 
-sims <- replicate(draw_sim(community_pars = communitypars), n = 10, simplify = F)
+sims <- replicate(draw_sim(community_pars = communitypars), n = 1000, simplify = F)
 
 sims_e <- lapply(sims, add_energy_sizeclass)
 
