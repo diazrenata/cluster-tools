@@ -1,0 +1,121 @@
+---
+title: "ISD methods"
+output: html_notebook
+---
+## setup
+
+```{r setup, echo = F}
+library(dplyr)
+R.utils::sourceDirectory(path = here::here("lumpy-gappy", "R"))
+```
+
+## get data
+
+```{r get data}
+
+dat <- get_toy_portal_data()
+dat_e <- add_energy_sizeclass(dat)
+isd <- make_isd(dat_e)
+
+```
+
+## draw a sim
+
+```{r draw sim}
+set.seed(352)
+communitypars <- get_community_pars(isd)
+
+sim <- draw_sim(community_pars = communitypars)
+
+sim_e <- add_energy_sizeclass(sim)
+
+sim_isd <- make_isd(sim_e)
+
+```
+## plot ISDs
+
+```{r plot ISDs}
+isd_plot <- plot_isd(isd, "Empirical")
+sim_isd_plot <- plot_isd(sim_isd, "Simulated") 
+
+gridExtra::grid.arrange(isd_plot, sim_isd_plot, nrow = 1)
+
+```
+
+## fit GMMs
+
+```{r fit gmms}
+
+isds_to_analyze <- list(emp = isd,
+                        sim = sim_isd)
+
+gmms <- lapply(isds_to_analyze, fit_gmm)
+```
+
+## integrate density
+
+```{r integrate density}
+
+ids <- lapply(gmms, get_integrated_density)
+
+id_plots <- lapply(ids, plot_integrated_density, threshold_lines = 0.05, pit_boundaries = F)
+
+gridExtra::grid.arrange(grobs = id_plots, nrow = 1)
+```
+
+```{r add gaps with new method}
+ids2 <- list()
+for(i in 1:length(ids)) {
+  ids2[[i]] <- find_gaps(threshold = 0.05, integrated_density = ids[[i]])
+}
+
+gap_plots <- lapply(ids2, plot_integrated_density, pit_boundaries = TRUE)
+
+gridExtra::grid.arrange(grobs = gap_plots, nrow = 1)
+
+```
+
+```{r count gaps and modes} 
+
+ngaps <- vapply(ids2, FUN = count_gaps, FUN.VALUE = 1)
+npeaks <- vapply(ids2, FUN = count_peaks, FUN.VALUE = 1)
+thresh <- vapply(ids2, FUN = get_threshold, FUN.VALUE = .5)
+
+```
+
+```{r try many thresholds}
+
+thresholds_to_try <- seq(0, .25, by = 0.01)
+
+emp_thresholds <- lapply(thresholds_to_try, find_gaps, integrated_density = ids[[1]])
+
+empirical_result <- get_result(emp_thresholds) %>%
+  dplyr::mutate(source = "empirical")
+
+sim_thresholds <- lapply(thresholds_to_try, find_gaps, integrated_density = ids[[2]])
+sim_result <- get_result(sim_thresholds) %>%
+  dplyr::mutate(source = "sim")
+
+
+results <- dplyr::bind_rows(empirical_result, sim_result)
+
+result_gaps_plot <- ggplot2::ggplot(data= results,
+                               ggplot2::aes(x = threshold, 
+                                            y = ngaps,
+                                            color = source)) +
+  ggplot2::geom_jitter(width = 0, height = 0.05) +
+    ggplot2::ylim(-.1, 5) +
+  ggplot2::theme_bw()
+result_gaps_plot
+
+result_peaks_plot <- ggplot2::ggplot(data= results,
+                               ggplot2::aes(x = threshold, 
+                                            y = npeaks,
+                                            color = source)) +
+  ggplot2::geom_jitter(width = 0, height = 0.05) +
+  ggplot2::ylim(0, 5) +
+  ggplot2::theme_bw()
+
+result_peaks_plot
+
+```
