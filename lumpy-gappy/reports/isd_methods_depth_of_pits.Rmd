@@ -1,0 +1,112 @@
+---
+title: "ISD methods"
+output: html_notebook
+---
+## setup
+
+```{r setup, echo = F}
+library(dplyr)
+R.utils::sourceDirectory(path = here::here("lumpy-gappy", "R"))
+```
+
+## get data
+
+```{r get data}
+
+dat <- get_toy_portal_data()
+dat_e <- add_energy_sizeclass(dat)
+isd <- make_isd(dat_e)
+
+```
+
+## draw a sim
+
+```{r draw sim}
+set.seed(352)
+communitypars <- get_community_pars(isd)
+
+sim <- draw_sim(community_pars = communitypars)
+
+sim_e <- add_energy_sizeclass(sim)
+
+sim_isd <- make_isd(sim_e)
+
+```
+## plot ISDs
+
+```{r plot ISDs}
+isd_plot <- plot_isd(isd, "Empirical")
+sim_isd_plot <- plot_isd(sim_isd, "Simulated") 
+
+gridExtra::grid.arrange(isd_plot, sim_isd_plot, nrow = 1)
+
+```
+
+## fit GMMs
+
+```{r fit gmms}
+
+isds_to_analyze <- list(emp = isd,
+                        sim = sim_isd)
+
+gmms <- lapply(isds_to_analyze, fit_gmm)
+```
+
+## integrate density
+
+```{r integrate density}
+
+ids <- lapply(gmms, get_integrated_density)
+
+id_plots <- lapply(ids, plot_integrated_density, threshold_lines = 0.05, pit_boundaries = F)
+
+gridExtra::grid.arrange(grobs = id_plots, nrow = 1)
+```
+
+```{r ranked probability dists}
+
+get_ranked_p <- function(integrated_density, truncate = TRUE) {
+  if(truncate) {
+    integrated_density <- integrated_density %>%
+      dplyr::filter(by_max > 0.000001)
+  }
+  
+  ranked_p <- integrated_density %>%
+    dplyr::select(start, by_max) %>%
+    dplyr::arrange(dplyr::desc(by_max)) %>%
+    dplyr::mutate(rank = dplyr::row_number())
+  
+  return(ranked_p)
+}
+
+rps <- lapply(ids, get_ranked_p)
+
+plot_ranked_p <- function(ranked_p, quants = c(0.05, 0.1, 0.25)) {
+  
+  quantile_ps <- as.numeric(quantile(ranked_p$by_max, probs = quants))
+  
+  get_quantile_rank <- function(quantile_p, ranked_p) {
+    ps <- dplyr::filter(ranked_p, by_max <= quantile_p)
+    q_rank <- min(ps$rank)
+    return(q_rank)
+  }
+  
+  q_ranks <- vapply(quantile_ps, get_quantile_rank, ranked_p = ranked_p,
+                    FUN.VALUE = 3)
+  
+  rp_plot <- ggplot2::ggplot(data = ranked_p,
+                             ggplot2::aes(x = rank, y = by_max)) +
+    ggplot2::geom_point(inherit.aes = TRUE) +
+    ggplot2::labs(x = "Rank", y = "Scaled probability density", main = "Rank probability density") +
+    ggplot2::geom_vline(xintercept = q_ranks, color = "red") +
+    ggplot2::theme_bw()
+  
+  return(rp_plot)
+}
+
+rp_plots <- lapply(rps, plot_ranked_p, quants = c(.1, .5, .75))
+
+gridExtra::grid.arrange(grobs = rp_plots, nrow = 1)
+
+```
+
