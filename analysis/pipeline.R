@@ -12,15 +12,18 @@ empirical_pipeline <- drake_plan(
   empirical_e = target(add_energy_sizeclass(empirical_data)),
   empirical_isd  = target(make_isd(empirical_e)),
   empirical_gmm = target(fit_gmm(empirical_isd)),
-  empirical_id = target(get_integrated_density(empirical_gmm, type = "empirical"))
+  empirical_id = target(get_integrated_density(empirical_gmm))
 )
 
 
 ## ----sim channel------------------------------------------------------------
+stdevs <- c(0.1, 0.2)
+
 sim_pipeline <- drake_plan(
   cp = target(get_community_pars(empirical_isd)),
-  draw = target(draw_sim(community_pars, sim_index),
+  draw = target(draw_sim(community_pars, sdev, sim_index),
                 transform = map(community_pars = cp,
+                                sdev = !!stdevs,
                                 sim_index = !!sim_indices)
   ),
   e = target(add_energy_sizeclass(draw),
@@ -54,7 +57,7 @@ thresholds_pipeline <- drake_plan(
     bind_rows(r),
     transform = combine(r)
   )
-)
+  )
 
 
 pipeline <- bind_rows(empirical_pipeline, sim_pipeline, thresholds_pipeline) 
@@ -73,4 +76,7 @@ if (interactive())
 
 make(pipeline, cache = cache, cache_log_file = here::here("drake", "cache_log.txt"))
 
+result <- readd(result, cache = cache)
 
+result$source <- unlist(thresholds_pipeline[ which(substr(as.character(thresholds_pipeline$target), 0, 2) == "r_"), "target"])
+                              

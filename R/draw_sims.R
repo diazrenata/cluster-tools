@@ -36,8 +36,8 @@ draw_bsd <- function(community_pars) {
 # Add standard deviations to BSD
 ## Current: sdev scales as .1*(mean) on a linear scale. RMD is basing this on her general sense from fieldwork at Portal.
 ## Future: Get sdev from rodent lit. Requires some thought wrt avoiding circularity. 
-add_sd <- function(bsd_means) {
-  sds <- .1 * bsd_means
+add_sd <- function(bsd_means, sdev = 0.1) {
+  sds <- sdev * bsd_means
   bsd <- data.frame(
     means = bsd_means,
     sd = sds
@@ -72,11 +72,11 @@ combine_abds <- function(sad, bsd) {
 
 # Draw sim(s)
 ## Wrapper for above functions
-draw_sim <- function(community_pars, sim_index = 1){
+draw_sim <- function(community_pars, sdev = 0.1, sim_index = 1){
   
   sad <- draw_sad(community_pars = community_pars)
   bsd <- draw_bsd(community_pars = community_pars)
-  bsd <- add_sd(bsd)
+  bsd <- add_sd(bsd, sdev = sdev)
   bsd <- combine_abds(sad = sad, bsd = bsd)
   
   sim <- lapply(1:nrow(bsd),FUN = assign_ind_sizes, bsd = bsd)
