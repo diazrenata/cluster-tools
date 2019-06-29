@@ -33,9 +33,14 @@ get_threshold <- function(integrated_density) {
   return(integrated_density$threshold[1])
 }
 
+get_type <- function(integrated_density) {
+  return(integrated_density$type[1])
+}
+
 get_result <- function(integrated_density) {
-  result <- data.frame(ngaps = vapply(integrated_density, FUN = count_gaps, FUN.VALUE = 1),
-                       npeaks = vapply(integrated_density, FUN = count_peaks, FUN.VALUE = 1),
-                       threshold = vapply(integrated_density, FUN = get_threshold, FUN.VALUE = .5))
+  result <- data.frame(ngaps = count_gaps(integrated_density),
+                       npeaks = count_peaks(integrated_density),
+                       threshold = get_threshold(integrated_density),
+                       type = get_type(integrated_density))
   return(result)
 }

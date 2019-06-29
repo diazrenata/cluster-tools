@@ -72,7 +72,7 @@ combine_abds <- function(sad, bsd) {
 
 # Draw sim(s)
 ## Wrapper for above functions
-draw_sim <- function(community_pars){
+draw_sim <- function(community_pars, sim_index = 1){
   
   sad <- draw_sad(community_pars = community_pars)
   bsd <- draw_bsd(community_pars = community_pars)
