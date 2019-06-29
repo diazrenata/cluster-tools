@@ -24,14 +24,14 @@ plot_integrated_density <- function(integrated_density, threshold_lines = NULL, 
   
   if(pit_boundaries) {
     
-    if(!("start_is_trough_start" %in% colnames(integrated_density))) {
+    if(!("is_gap_start" %in% colnames(integrated_density))) {
       warning("Missing trough boundaries")
       return(integrated_plot)
     }
     
     integrated_plot <- integrated_plot + 
-      ggplot2::geom_point(data = integrated_density[ which(integrated_density$start_is_trough_start), c("start", "by_max")], inherit.aes = TRUE, color = "red", size = 2, shape = 4) +
-      ggplot2::geom_point(data = integrated_density[ which(integrated_density$start_is_trough_stop), c("start", "by_max")], inherit.aes = TRUE, color = "red", size = 2, shape = 4) 
+      ggplot2::geom_point(data = integrated_density[ which(integrated_density$is_gap_start), c("start", "by_max")], inherit.aes = TRUE, color = "red", size = 2, shape = 4) +
+      ggplot2::geom_point(data = integrated_density[ which(integrated_density$is_gap_end), c("start", "by_max")], inherit.aes = TRUE, color = "red", size = 2, shape = 4) 
   }
   
   return(integrated_plot)
