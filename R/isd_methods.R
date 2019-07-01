@@ -9,7 +9,7 @@ make_isd <- neonbecs::make_isd
 fit_gmm <- neonbecs::fit_gmm
 
 # Integrate density of GMM
-get_integrated_density <- function(gmm, interval_size = 0.0001, min_size = 0, max_size = 8, type = "sim") {
+get_integrated_density <- function(gmm, interval_size = 0.0001, min_size = 0, max_size = 8, type = "sim", dat_name, stdev) {
   
   density_evalpoints <- seq(min_size, max_size, by = interval_size)
   
@@ -44,6 +44,9 @@ get_integrated_density <- function(gmm, interval_size = 0.0001, min_size = 0, ma
   integrated_density$start_is_pit <- c(1:(length(density_evalpoints) - 1)) %in% pits
   integrated_density$start_is_turnpoint <- (integrated_density$start_is_peak | integrated_density$start_is_pit)
   integrated_density$type = type
+  integrated_density$dat_name = dat_name
+  integrated_density$stdev = stdev
+  
   return(integrated_density)
 }
 

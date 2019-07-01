@@ -37,9 +37,20 @@ get_type <- function(integrated_density) {
   return(integrated_density$type[1])
 }
 
+get_datname <- function(integrated_density) {
+  return(integrated_density$dat_name[1])
+}
+
+get_stdev <- function(integrated_density) {
+  return(integrated_density$stdev[1])
+}
+
 get_result <- function(integrated_density) {
   result <- data.frame(ngaps = count_gaps(integrated_density),
                        npeaks = count_peaks(integrated_density),
-                       threshold = get_threshold(integrated_density))
+                       threshold = get_threshold(integrated_density),
+                       dat_type = get_type(integrated_density),
+                       datname = get_datname(integrated_density),
+                       stdev = get_stdev(integrated_density))
   return(result)
 }
