@@ -1,66 +1,33 @@
-## ----setup, echo = F-----------------------------------------------------
 library(drake)
 library(dplyr)
 R.utils::sourceDirectory(path = here::here("R"))
 
-## ----empirical channel-----------------------------------------------------------
-
 sim_indices = as.numeric(c(1:2))
+stdevs = c(0.1, 0.2)
+thresholds_to_try = seq(.01, .26, by = 0.05)
 
-empirical_pipeline <- drake_plan(
-  empirical_data  = target(get_toy_portal_data()),
-  empirical_e = target(add_energy_sizeclass(empirical_data)),
-  empirical_isd  = target(make_isd(empirical_e)),
-  empirical_gmm = target(fit_gmm(empirical_isd)),
-  empirical_id = target(get_integrated_density(empirical_gmm))
+dats <- drake_plan(
+  dat1  = target(get_toy_portal_data()),
+  dat2 = target(get_toy_portal_data())
 )
 
+cp_pipeline <- make_cp_pipeline(dats)
 
-## ----sim channel------------------------------------------------------------
-stdevs <- c(0.1, 0.2)
+sp_pipeline <- make_sp_pipeline(cp_pipeline = cp_pipeline,
+                                stdevs = stdevs)
 
-sim_pipeline <- drake_plan(
-  cp = target(get_community_pars(empirical_isd)),
-  draw = target(draw_sim(community_pars, sdev, sim_index),
-                transform = map(community_pars = cp,
-                                sdev = !!stdevs,
-                                sim_index = !!sim_indices)
-  ),
-  e = target(add_energy_sizeclass(draw),
-             transform = map(draw)),
-  isd = target(make_isd(e),
-               transform = map(e)),
-  gmm = target(fit_gmm(isd),
-               transform = map(isd)),
-  id = target(get_integrated_density(gmm),
-              transform = map(gmm))
-)
+draw_pipeline <- make_draw_pipeline(sp_pipeline = sp_pipeline,
+                                    sim_indices = sim_indices)
+sim_id_pipeline <- make_id_pipeline(draw_pipeline, "sim")
 
-sim_ids <- vector()
-for(i in 1:nrow(sim_pipeline)) {
-  if(rlang::call_name(unlist(sim_pipeline$command)[[i]]) == "get_integrated_density") {
-    sim_ids <- c(sim_ids, sim_pipeline$target[[i]])
-  } 
-}
+empirical_id_pipeline <- make_id_pipeline(dats, "emp")
 
-ids <- c("empirical_id", sim_ids)
+id_pipelines <- rbind(sim_id_pipeline, empirical_id_pipeline)
 
-thresholds_to_try <- seq(.01, .26, by = 0.01)
-thresholds_pipeline <- drake_plan(
-  t = target(find_gaps(threshold, id),
-             transform = cross(threshold = !!thresholds_to_try,
-                               id = !!rlang::syms(ids))
-  ),
-  r = target(get_result(t),
-             transform = map(t)),
-  result = target(
-    bind_rows(r),
-    transform = combine(r)
-  )
-  )
+thresholds_pipeline <- make_thresholds_pipeline(id_pipelines,
+                                                thresholds_to_try)
 
-
-pipeline <- bind_rows(empirical_pipeline, sim_pipeline, thresholds_pipeline) 
+full_pipeline <- rbind(dats, cp_pipeline, sp_pipeline, draw_pipeline, id_pipelines, thresholds_pipeline)
 
 ## Set up the cache and config
 db <- DBI::dbConnect(RSQLite::SQLite(), here::here("drake", "drake-cache.sqlite"))
@@ -69,14 +36,9 @@ cache <- storr::storr_dbi("datatable", "keystable", db)
 ## View the graph of the plan
 if (interactive())
 {
-  config <- drake_config(pipeline, cache = cache)
+  config <- drake_config(full_pipeline, cache = cache)
   sankey_drake_graph(config, build_times = "none")  # requires "networkD3" package
   vis_drake_graph(config, build_times = "none")     # requires "visNetwork" package
 }
 
-make(pipeline, cache = cache, cache_log_file = here::here("drake", "cache_log.txt"))
-
-result <- readd(result, cache = cache)
-
-result$source <- unlist(thresholds_pipeline[ which(substr(as.character(thresholds_pipeline$target), 0, 2) == "r_"), "target"])
-                              
+make(full_pipeline, cache = cache, cache_log_file = here::here("drake", "cache_log.txt"))
